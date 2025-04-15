@@ -295,6 +295,8 @@ export class Messenger {
                                 )
                                 await ToolUtils.queueDescription(tool, chatStream)
 
+                                // send new reject all button message here?
+
                                 if (!validation.requiresAcceptance) {
                                     // Need separate id for read tool and safe bash command execution as 'run-shell-command' id is required to state in cwChatConnector.ts which will impact generic tool execution.
                                     if (tool.type === ToolType.ExecuteBash) {
@@ -593,6 +595,20 @@ export class Messenger {
                     id: 'accept-code-diff',
                     status: 'clear',
                     icon: 'ok' as MynahIconsType,
+                },
+                {
+                    text: 'Discard All',
+                    id: 'discard-all',
+                    status: 'clear',
+                    icon: 'cancel' as MynahIconsType,
+                    position: 'outside',
+                },
+                {
+                    text: 'Keep All',
+                    id: 'keep-all',
+                    status: 'clear',
+                    icon: 'ok' as MynahIconsType,
+                    position: 'outside',
                 },
             ]
             header = {

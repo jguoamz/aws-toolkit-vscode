@@ -37,6 +37,8 @@ export class ChatSession {
     private _context: PromptMessage['context']
     private _pairProgrammingModeOn: boolean = true
     private _fsWriteBackups: Map<string, FsWriteBackup> = new Map()
+    private _fsWriteConsecutive: Map<string, Set<string>> = new Map()
+    private _lastFsWriteConsecutiveId: string | undefined
     /**
      * True if messages from local history have been sent to session.
      */
@@ -80,6 +82,26 @@ export class ChatSession {
 
     public setFsWriteBackup(toolUseId: string, backup: FsWriteBackup) {
         this._fsWriteBackups.set(toolUseId, backup)
+    }
+
+    public get fsWriteConsecutive(): Map<string, Set<string>> {
+        return this._fsWriteConsecutive
+    }
+
+    public setfsWriteConsecutive(oldToolUseId: string, newToolUseId: string) {
+        const consecutiveToolUse = this._fsWriteConsecutive.get(oldToolUseId) ?? new Set<string>()
+        consecutiveToolUse.add(newToolUseId)
+        consecutiveToolUse.add(oldToolUseId)
+        this._fsWriteConsecutive.delete(oldToolUseId)
+        // use the latest toolUseId as the key because the button is on the last message
+        this._fsWriteConsecutive.set(newToolUseId, consecutiveToolUse)
+    }
+
+    public get lastFsWriteConsecutiveId(): string | undefined {
+        return this._lastFsWriteConsecutiveId
+    }
+    public setLastFsWriteConsecutiveId(value: string | undefined) {
+        this._lastFsWriteConsecutiveId = value
     }
 
     public tokenSource!: vscode.CancellationTokenSource

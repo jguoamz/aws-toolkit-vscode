@@ -708,6 +708,7 @@ export class ChatController {
                         toolUseId: toolUse.toolUseId,
                         status: ToolResultStatus.ERROR,
                     })
+                    session.setLastFsWriteConsecutiveId(undefined)
                 } else {
                     const result = ToolUtils.tryFromToolUse(toolUse)
                     if ('type' in result) {
@@ -721,7 +722,19 @@ export class ChatController {
                             })
                             if (tool.type === ToolType.FsWrite && toolUse.toolUseId) {
                                 const backup = await tool.tool.getBackup()
-                                session.setFsWriteBackup(toolUse.toolUseId, backup)
+                                const newToolId = toolUse.toolUseId
+                                session.setFsWriteBackup(newToolId, backup)
+
+                                if (session.lastFsWriteConsecutiveId) {
+                                    const oldToolId = session.lastFsWriteConsecutiveId
+                                    session.setfsWriteConsecutive(oldToolId, newToolId)
+                                    // update pointer to the latest one
+                                    session.setLastFsWriteConsecutiveId(newToolId)
+                                } else {
+                                    session.setLastFsWriteConsecutiveId(newToolId)
+                                }
+                            } else {
+                                session.setLastFsWriteConsecutiveId(undefined)
                             }
                             const output = await ToolUtils.invoke(tool, chatStream)
                             ToolUtils.validateOutput(output)
@@ -735,6 +748,8 @@ export class ChatController {
                                 toolUseId: toolUse.toolUseId,
                                 status: ToolResultStatus.SUCCESS,
                             })
+
+                            //
                         } catch (e: any) {
                             toolResults.push({
                                 content: [{ text: e.message }],
@@ -827,11 +842,16 @@ export class ChatController {
             case 'generic-tool-execution':
                 await this.processToolUseMessage(message)
                 break
+            case 'keep-all':
             case 'accept-code-diff':
                 await this.closeDiffView()
                 break
             case 'reject-code-diff':
                 await this.restoreBackup(message)
+                await this.closeDiffView()
+                break
+            case 'discard-all':
+                await this.restoreAllBackup(message)
                 await this.closeDiffView()
                 break
             case 'reject-shell-command':
@@ -851,6 +871,28 @@ export class ChatController {
         }
 
         const session = this.sessionStorage.getSession(tabID)
+        await this._resetFsWrite(session, toolUseId)
+    }
+
+    private async restoreAllBackup(message: CustomFormActionMessage) {
+        const tabID = message.tabID
+        const toolUseId = message.action.formItemValues?.toolUseId
+        if (!tabID || !toolUseId) {
+            return
+        }
+        // eslint-disable-next-line aws-toolkits/no-console-log
+        console.log('restoreAll')
+
+        const session = this.sessionStorage.getSession(tabID)
+        const toolUseIds = session.fsWriteConsecutive.get(toolUseId) ?? new Set<string>()
+        // eslint-disable-next-line aws-toolkits/no-console-log
+        console.log(toolUseIds)
+        for (const id of toolUseIds) {
+            await this._resetFsWrite(session, id)
+        }
+    }
+
+    private async _resetFsWrite(session: ChatSession, toolUseId: string) {
         const { content, filePath, isNew } = session.fsWriteBackups.get(toolUseId) ?? {}
         if (filePath && isNew) {
             await fs.delete(filePath)

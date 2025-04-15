@@ -15,6 +15,7 @@ import {
 import { TabType } from '../storages/tabsStorage'
 import { CWCChatItem } from '../connector'
 import { BaseConnector, BaseConnectorProps } from './baseConnector'
+import { ChatSessionStorage } from '../../../../codewhispererChat'
 
 export interface ConnectorProps extends BaseConnectorProps {
     onCWCContextCommandMessage: (message: CWCChatItem, command?: string) => string | undefined
@@ -319,6 +320,17 @@ export class Connector extends BaseConnector {
             tabID: tabId,
         })
 
+        if (this.onChatAnswerUpdated && ['keep-all', 'discard-all'].includes(action.id) && messageId) {
+            // handle keep-all and discard-all action
+            const toolUseId = messageId
+            const session = new ChatSessionStorage().getSession(tabId)
+            const messageIdsToUpdate = session.fsWriteConsecutive.get(toolUseId) ?? new Set<string>()
+
+            for (const messageIdToUpdate of messageIdsToUpdate) {
+                this.onCodeDiffAction(tabId, messageIdToUpdate, action.id === 'keep-all')
+            }
+        }
+
         if (
             !this.onChatAnswerUpdated ||
             !['accept-code-diff', 'reject-code-diff', 'run-shell-command', 'reject-shell-command'].includes(action.id)
@@ -401,5 +413,42 @@ export class Connector extends BaseConnector {
             filePath,
             tabType: 'cwc',
         })
+    }
+
+    onCodeDiffAction = (tabId: string, messageId: string, isAccept: boolean) => {
+        if (this.onChatAnswerUpdated === undefined) {
+            return
+        }
+        const currentChatItem = this.getCurrentChatItem(tabId, messageId)
+        const answer: ChatItem = {
+            type: ChatItemType.ANSWER,
+            messageId: messageId,
+            buttons: [],
+            body: undefined,
+            header: currentChatItem?.header ? { ...currentChatItem.header } : {},
+        }
+        if (answer.header) {
+            if (isAccept) {
+                answer.header.status = {
+                    icon: 'ok' as MynahIconsType,
+                    text: 'Accepted',
+                    status: 'success',
+                }
+            } else {
+                answer.header.status = {
+                    icon: 'cancel' as MynahIconsType,
+                    text: 'Rejected',
+                    status: 'error',
+                }
+            }
+            answer.header.buttons = []
+            answer.body = ' '
+        }
+        if (currentChatItem && answer.messageId) {
+            const updatedItem = { ...currentChatItem, ...answer }
+            this.storeChatItem(tabId, answer.messageId, updatedItem)
+        }
+
+        this.onChatAnswerUpdated(tabId, answer)
     }
 }
