@@ -9,6 +9,7 @@ import fs from '../../shared/fs/fs'
 export const defaultMaxToolResponseSize = 100_000
 export const listDirectoryToolResponseSize = 30_000
 export const fsReadToolResponseSize = 200_000
+export const webScrapeToolResponseSize = 50_000
 
 export enum OutputKind {
     Text = 'text',

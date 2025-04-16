@@ -98,5 +98,27 @@
             },
             "required": ["path"]
         }
+    },
+    "webScrape": {
+        "name": "webScrape",
+        "description": "A tool for reading from web pages.\n * This tool can fetch either pure text content or raw HTML content that includes styling, images and fonts from a specified url.\n * Results are limited to the first 50K characters to prevent excessive responses.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "explanation": {
+                    "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal.",
+                    "type": "string"
+                },
+                "url": {
+                    "description": "The URL of the web page to read.",
+                    "type": "string"
+                },
+                "rawHTML": {
+                    "description": "Optional parameter that defaults to false if not provided. If true, the tool will return the raw HTML of the page including visual style, fonts, images etc. If false, it will return the text content of the page.",
+                    "type": "boolean"
+                }
+            },
+            "required": ["url"]
+        }
     }
 }
